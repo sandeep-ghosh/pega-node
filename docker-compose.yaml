@@ -1,0 +1,74 @@
+version: '3.8'
+
+services:
+
+  db:
+    image: sandeepgh/postgres-pljava-openjdk:12.8
+    restart: unless-stopped
+    container_name: postgres12.8-pega
+    networks:
+      - pega-network
+    environment:
+      POSTGRES_PASSWORD: "password"
+      PGDATA: "/var/lib/postgresql/data/pgdata"
+      IMPORT_DUMP: "true"
+      DUMP_FILENAME: "pega.dump"
+    volumes:
+      - '<local directory to hold Postgresql data>:/var/lib/postgresql/data'
+      - '<local directory containing dump file>:/media'
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 1m
+      timeout: 10s
+
+  adminer:
+    image: adminer
+    restart: unless-stopped
+    container_name: adminer
+    networks:
+      - pega-network
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - 8081:8080
+
+  pega-node:
+    image: <docker username>/<docker private repo name>:<tagname>
+    restart: unless-stopped
+    labels:
+      - "autoheal=true"
+    container_name: pega-node86
+    networks:
+      - pega-network
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - 8080:8080
+    environment:
+      JDBC_URL: "jdbc:postgresql://postgres12.8-pega:5432/postgres"
+      JDBC_CLASS: "org.postgresql.Driver"
+      DB_USERNAME: "postgres"
+      DB_PASSWORD: "password"
+    healthcheck:
+      test: curl --fail http://pega-node86:8080/prweb/ || exit 1
+      interval: 5m
+      timeout: 10s
+      retries: 1
+
+  autoheal:
+    image: willfarrell/autoheal
+    restart: always
+    container_name: autoheal
+    networks:
+      - pega-network
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      AUTOHEAL_CONTAINER_LABEL: "all"
+    volumes:
+      - '/var/run/docker.sock:/var/run/docker.sock'
+networks:
+  pega-network:
