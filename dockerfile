@@ -6,7 +6,7 @@ RUN mkdir prweb
 RUN unzip -q -o prweb.war -d /prweb
 
 
-FROM sandeepgh/pega-ready:8.6
+FROM sandeepgh/pega-ready:8.7
 
 # Copy prweb to tomcat webapps directory
 COPY --chown=pegauser:root --from=builder /prweb ${CATALINA_HOME}/webapps/prweb
